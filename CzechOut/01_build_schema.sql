@@ -1,3 +1,5 @@
+
+
 -- TODO: set schema
 USE [CzechOut]
 -- schema [dbo]
@@ -92,7 +94,7 @@ CREATE TABLE ProductResources (
 )
 
 DROP TABLE IF EXISTS Reservations
--- The Reservations table allows Customers to reserve Products
+-- The Reservations table allows Users to reserve Products
 CREATE TABLE Reservations (
     [UserID] INT
         CONSTRAINT Reservations_FK_Users REFERENCES Users([UserID])
@@ -136,6 +138,46 @@ CREATE FUNCTION Get_MemberTypeID ( @name VARCHAR(256) ) RETURNS INTEGER
 GO
 
 GO
+CREATE PROCEDURE Add_Or_Update_Reservation
+		@email VARCHAR(256), @productName VARCHAR(256), @quantity INT
+	AS BEGIN
+		BEGIN TRANSACTION
+			DECLARE	@productID INT, @userID INT
+			SET @productID = [dbo].Get_UserID(@email)
+			SET @userID = [dbo].Get_ProductID(@productName)
+			IF EXISTS (
+				SELECT * FROM Reservations Rs
+					WHERE (Rs.[UserID] = @userID)
+					AND (Rs.[ProductID] = @productID)
+			)
+				UPDATE Reservations
+					SET [Quantity] = @quantity
+					WHERE ([ProductID] = @productID) AND ([UserID] = @userID)
+			ELSE
+				INSERT INTO Reservations([UserID], [ProductID], [Quantity])
+					VALUES (@userID, @productID, @quantity)
+		COMMIT TRANSACTION
+	END
+GO
+
+
+-- If @productName is not NULL, Remove_Reservation deletes the reservation of @productName,
+-- for the user @email. If @productName is NULL, all reservations for the user @email are deleted.
+GO
+CREATE PROCEDURE Remove_Reservation
+		@email VARCHAR(256),
+		@productName VARCHAR(256) = NULL
+	AS BEGIN
+		DELETE FROM Reservations 
+			WHERE ([UserID] = [dbo].Get_UserID(@email))
+			AND (
+				(@productName = NULL) OR
+				([ProductID] = [dbo].Get_ProductID(@productName))
+			)
+	END
+GO
+
+GO
 CREATE PROCEDURE Add_Customer
         @email VARCHAR(256), @phoneNumber VARCHAR(16),
 		@firstName VARCHAR(256), @lastName VARCHAR(256),
@@ -158,6 +200,29 @@ CREATE PROCEDURE Add_Customer
             [dbo].Get_MemberTypeID(@memberTypeName)
         )
     END
+GO
+
+
+GO
+CREATE PROCEDURE Close_User_Account
+		@email VARCHAR(256)
+	AS BEGIN
+		BEGIN TRANSACTION
+			
+			EXEC Remove_Reservation @email
+			UPDATE Users
+				SET [AccountClose] = GETDATE()
+				WHERE [Email] = @email
+		COMMIT TRANSACTION
+	END
+GO
+
+GO
+CREATE PROCEDURE Close_Customer_Account
+		@email VARCHAR(256)
+	AS BEGIN
+		EXEC Close_User_Account @email
+	END
 GO
 
 GO
@@ -186,6 +251,14 @@ CREATE PROCEDURE Add_Employee
 GO
 
 GO
+CREATE PROCEDURE Close_Employee_Account
+		@email VARCHAR(256)
+	AS BEGIN
+		EXEC Close_User_Account @email
+	END
+GO
+
+GO
 CREATE PROCEDURE Add_Product
 		@name VARCHAR(256), @quantity INT,
 		@beginDateTime DATETIME, @endDateTime DATETIME
@@ -194,6 +267,19 @@ CREATE PROCEDURE Add_Product
 		VALUES (@name, @quantity, @beginDateTime, @endDateTime)
 	END
 GO
+
+GO
+CREATE PROCEDURE Cancel_Product
+		@name VARCHAR(256)
+	AS BEGIN
+		BEGIN TRANSACTION
+			DELETE Rs FROM Reservations Rs
+				INNER JOIN Products Ps ON (Ps.ProductID = Rs.ProductID)
+				WHERE (Ps.[Name] = @name)
+			DELETE FROM Products
+				WHERE ([Name] = @name)
+		COMMIT TRANSACTION
+	END
 
 GO
 CREATE PROCEDURE Update_Product_Schedule
@@ -241,15 +327,6 @@ CREATE PROCEDURE Add_MemberType
 	END
 GO
 
-GO
-CREATE PROCEDURE Add_Reservation
-		@email VARCHAR(256), @productName VARCHAR(256), @quantity INT
-	AS BEGIN
-		INSERT INTO Reservations([UserID], [ProductID], [Quantity])
-		VALUES ([dbo].Get_UserID(@email), [dbo].Get_ProductID(@productName), @quantity)
-	END
-GO
-
 -- Get_Overlaps function takes a productID corresponding to a product P1
 -- and returns a table of pairs of products, P1 and P2, such that
 -- P1 and P2 both depend upon a common resource with resourceID at the same time.
@@ -294,43 +371,43 @@ GO
 -- View_ProductsResources shows product data and associated resource data.
 GO
 CREATE VIEW View_Customers
-	AS
-		SELECT	Cs.[MemberTypeID],
-				Us.[FirstName],
-				Us.[LastName],
-				Us.[Email],
-				Us.[Address],
-				Us.[PhoneNumber],
-				Us.[DateOfBirth],
-				Us.[AccountOpen],
-				Us.[AccountClose]
-			FROM Customers Cs
-			INNER JOIN Users Us ON (Cs.UserID=Us.UserID)
+        AS
+                SELECT  Cs.[MemberTypeID],
+                                Us.[FirstName],
+                                Us.[LastName],
+                                Us.[Email],
+                                Us.[Address],
+                                Us.[PhoneNumber],
+                                Us.[DateOfBirth],
+                                Us.[AccountOpen],
+                                Us.[AccountClose]
+                        FROM Customers Cs
+                        INNER JOIN Users Us ON (Cs.UserID=Us.UserID)
 GO
 
 -- View_Reservations shows product reservations made by users (usually customers)
 GO
 CREATE VIEW View_Reservations
-	AS
-		SELECT	Us.[FirstName],
-				Us.[LastName],
-				Ps.[Name]
-			FROM Reservations Rs
-			INNER JOIN Users Us ON (Rs.UserID=Us.UserID)
-			INNER JOIN Products Ps ON (Rs.ProductID=Ps.ProductID)
+        AS
+                SELECT  Us.[FirstName],
+                                Us.[LastName],
+                                Ps.[Name]
+                        FROM Reservations Rs
+                        INNER JOIN Users Us ON (Rs.UserID=Us.UserID)
+                        INNER JOIN Products Ps ON (Rs.ProductID=Ps.ProductID)
 GO
 
 -- View_Products_Reserved_1Week shows products, and their reserved quantity, this week
 GO
 CREATE VIEW View_Products_Reserved_1Week
-	AS
-		SELECT  Ps.[Name],
-				Ps.[BeginDateTime],
-				Ps.[EndDateTime],
-				Ps.[Quantity],
-				[dbo].Get_ReservedQuantity(Ps.ProductID) AS ReservedQuantity
-			FROM Products AS Ps
-			WHERE Ps.BeginDateTime > GETDATE() AND Ps.[BeginDateTime] < DATEADD(WEEK, 1, GETDATE())
+        AS
+                SELECT  Ps.[Name],
+                                Ps.[BeginDateTime],
+                                Ps.[EndDateTime],
+                                Ps.[Quantity],
+                                [dbo].Get_ReservedQuantity(Ps.ProductID) AS ReservedQuantity
+                        FROM Products AS Ps
+                        WHERE Ps.BeginDateTime > GETDATE() AND Ps.[BeginDateTime] < DATEADD(WEEK, 1, GETDATE())
 GO
 
 /******************************************************************************
@@ -413,3 +490,7 @@ SELECT * FROM [dbo].Get_Overlaps(
 		) AS T1 ([ProductID], [ResourceID])
 	)
 )
+
+SELECT * FROM Products
+SELECT * FROM ProductResources
+SELECT * FROM Resources
