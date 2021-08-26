@@ -1,17 +1,26 @@
+-- Author:		Laurence Pettitt
+-- Project:		Database Applications (NDBI026)
+-- Description: Database Application for managing a Sports Centre called CzechOut
+--				The application allows registration of Employees and Customers,
+--				creation of bookable items such as classes (called Products)
+--				management of the Resources required to make the Products possible
+--				(e.g. rooms/facilities) and Reservation of users to Products,
+--				as well as the deletion/removal/cancellation of the above.
+--				The application ensures that Resources are not required by multiple
+--				Products at any one time.
 
-
--- TODO: set schema
 USE [CzechOut]
 -- schema [dbo]
 
 /******************************************************************************
 **   Tables
 **/
-DROP TABLE IF EXISTS Users
+
 -- Users have personal details.
 -- Email and phone number are both unique identifiers (e.g. for login)
 -- The account is only valid/active while the date is greater than or equal to
 -- AccountOpen and, either less than or equal to AccountClose or AccountClose is NULL.
+DROP TABLE IF EXISTS Users
 CREATE TABLE Users (
     [UserID] INT IDENTITY
         CONSTRAINT Users_PK PRIMARY KEY,
@@ -28,8 +37,8 @@ CREATE TABLE Users (
     [AccountClose] DATE
 )
 
-DROP TABLE IF EXISTS MemberTypes
 -- Describes the types of memberships that Customers can have
+DROP TABLE IF EXISTS MemberTypes
 CREATE TABLE MemberTypes (
     [MemberTypeID] INT IDENTITY
         CONSTRAINT MemberTypes_PK PRIMARY KEY,
@@ -38,8 +47,8 @@ CREATE TABLE MemberTypes (
     [Description] VARCHAR(256)
 )
 
-DROP TABLE IF EXISTS Customers
 -- Customers are Users which are able to book Products
+DROP TABLE IF EXISTS Customers
 CREATE TABLE Customers (
     [UserID] INT
         CONSTRAINT Customers_PK PRIMARY KEY
@@ -50,8 +59,8 @@ CREATE TABLE Customers (
             ON DELETE SET NULL
 )
 
-DROP TABLE IF EXISTS Employees
 -- Employees are Users which can create Products and Resources
+DROP TABLE IF EXISTS Employees
 CREATE TABLE Employees (
     [UserID] INT
         CONSTRAINT Employees_PK PRIMARY KEY
@@ -60,8 +69,8 @@ CREATE TABLE Employees (
     [JobTitle] CHAR(256)
 )
 
+-- A Resource can be associated with at most one Product at a time
 DROP TABLE IF EXISTS Resources
--- A Resource can be used to create at most one product at a time
 CREATE TABLE Resources (
     [ResourceID] INT IDENTITY
         CONSTRAINT Resources_PK PRIMARY KEY,
@@ -69,8 +78,8 @@ CREATE TABLE Resources (
         CONSTRAINT Resources_U_Name UNIQUE -- TODO: is UNIQUE efficient?
 )
 
+-- The Product table provides bookable items (e.g. classes and events) which have a capacity (Quantity) and duration
 DROP TABLE IF EXISTS Products
--- The Product table provides bookable items (e.g. classes and events) which have a capacity and duration
 CREATE TABLE Products (
     [ProductID] INT IDENTITY
         CONSTRAINT Products_PK PRIMARY KEY,
@@ -81,8 +90,8 @@ CREATE TABLE Products (
     [EndDateTime] DATETIME NOT NULL
 )
 
-DROP TABLE IF EXISTS ProductResources
 -- The ProductResources table links Products to their required Resources
+DROP TABLE IF EXISTS ProductResources
 CREATE TABLE ProductResources (
     [ProductID] INT NOT NULL
         CONSTRAINT ProductResources_FK_Products REFERENCES Products([ProductID])
@@ -93,8 +102,8 @@ CREATE TABLE ProductResources (
 	CONSTRAINT ProductResources_PK PRIMARY KEY ([ProductID], [ResourceID])
 )
 
-DROP TABLE IF EXISTS Reservations
 -- The Reservations table allows Users to reserve Products
+DROP TABLE IF EXISTS Reservations
 CREATE TABLE Reservations (
     [UserID] INT
         CONSTRAINT Reservations_FK_Users REFERENCES Users([UserID])
@@ -137,21 +146,23 @@ CREATE FUNCTION Get_MemberTypeID ( @name VARCHAR(256) ) RETURNS INTEGER
     END
 GO
 
+-- Add_Or_Update_Reservation will add a reservation of a product if none exists for the user
+-- otherwise @quantity will be added to the already reserved quantity of the product to the user.
 GO
 CREATE PROCEDURE Add_Or_Update_Reservation
 		@email VARCHAR(256), @productName VARCHAR(256), @quantity INT
 	AS BEGIN
 		BEGIN TRANSACTION
 			DECLARE	@productID INT, @userID INT
-			SET @productID = [dbo].Get_UserID(@email)
-			SET @userID = [dbo].Get_ProductID(@productName)
+			SET @userID = [dbo].Get_UserID(@email)
+			SET @productID = [dbo].Get_ProductID(@productName)
 			IF EXISTS (
 				SELECT * FROM Reservations Rs
 					WHERE (Rs.[UserID] = @userID)
 					AND (Rs.[ProductID] = @productID)
 			)
 				UPDATE Reservations
-					SET [Quantity] = @quantity
+					SET [Quantity] = ([Quantity] + @quantity)
 					WHERE ([ProductID] = @productID) AND ([UserID] = @userID)
 			ELSE
 				INSERT INTO Reservations([UserID], [ProductID], [Quantity])
@@ -389,9 +400,11 @@ GO
 GO
 CREATE VIEW View_Reservations
         AS
-                SELECT  Us.[FirstName],
-                                Us.[LastName],
-                                Ps.[Name]
+                SELECT		Us.[FirstName],
+							Us.[LastName],
+                            Ps.[Name],
+							Rs.[Quantity],
+							Ps.[Quantity] AS ProductQuantity
                         FROM Reservations Rs
                         INNER JOIN Users Us ON (Rs.UserID=Us.UserID)
                         INNER JOIN Products Ps ON (Rs.ProductID=Ps.ProductID)
@@ -401,11 +414,11 @@ GO
 GO
 CREATE VIEW View_Products_Reserved_1Week
         AS
-                SELECT  Ps.[Name],
-                                Ps.[BeginDateTime],
-                                Ps.[EndDateTime],
-                                Ps.[Quantity],
-                                [dbo].Get_ReservedQuantity(Ps.ProductID) AS ReservedQuantity
+                SELECT		Ps.[Name],
+							Ps.[BeginDateTime],
+                            Ps.[EndDateTime],
+                            Ps.[Quantity],
+                            [dbo].Get_ReservedQuantity(Ps.ProductID) AS ReservedQuantity
                         FROM Products AS Ps
                         WHERE Ps.BeginDateTime > GETDATE() AND Ps.[BeginDateTime] < DATEADD(WEEK, 1, GETDATE())
 GO
@@ -474,23 +487,3 @@ CREATE TRIGGER After_INSERT_UDPATE_Reservations ON Reservations AFTER INSERT, UP
 		END
 	END
 GO
-
-
-
-
-
-
-
-
--- Using Get_Overlaps to show products which require the same resources as some specific product
-SELECT * FROM [dbo].Get_Overlaps(
-	(	
-		SELECT T1.ProductID FROM (
-			VALUES ([dbo].Get_ProductID('HIIT'), [dbo].Get_ResourceID('Studio1'))
-		) AS T1 ([ProductID], [ResourceID])
-	)
-)
-
-SELECT * FROM Products
-SELECT * FROM ProductResources
-SELECT * FROM Resources

@@ -1,7 +1,10 @@
+-- Author:		Laurence Pettitt
+-- Project:		Database Applications (NDBI026)
+
 /******************************************************************************
 **   Database
 **/
--- TODO: Remove this from final version
+
 USE master
 
 DROP DATABASE IF EXISTS CzechOut

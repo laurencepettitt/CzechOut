@@ -1,3 +1,6 @@
+-- Author:		Laurence Pettitt
+-- Project:		Database Applications (NDBI026)
+
 USE [CzechOut]
 
 /******************************************************************************
@@ -117,5 +120,3 @@ INSERT INTO Resources VALUES ('TennisIndoor3')
 INSERT INTO Resources VALUES ('TennisOutdoor1')
 INSERT INTO Resources VALUES ('TennisOutdoor2')
 INSERT INTO Resources VALUES ('TennisOutdoor3')
-
-

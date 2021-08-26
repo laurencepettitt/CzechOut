@@ -19,29 +19,35 @@
     </LogicalFolder>
     <LogicalFolder Name="Queries" Type="0" Sorted="true">
       <Items>
-        <FileNode Name="build_schema.sql">
+        <FileNode Name="01_build_schema.sql">
           <AssociatedConnectionMoniker>8c91a03d-f9b4-46c0-a305-b5dcc79ff907:LAURENCE4DED\SQLEXPRESS:True</AssociatedConnectionMoniker>
           <AssociatedConnSrvName>LAURENCE4DED\SQLEXPRESS</AssociatedConnSrvName>
           <AssociatedConnUserName />
-          <FullPath>build_schema.sql</FullPath>
+          <FullPath>01_build_schema.sql</FullPath>
         </FileNode>
-        <FileNode Name="recreate_db.sql">
+        <FileNode Name="02_seed_data.sql">
           <AssociatedConnectionMoniker>8c91a03d-f9b4-46c0-a305-b5dcc79ff907:LAURENCE4DED\SQLEXPRESS:True</AssociatedConnectionMoniker>
           <AssociatedConnSrvName>LAURENCE4DED\SQLEXPRESS</AssociatedConnSrvName>
           <AssociatedConnUserName />
-          <FullPath>recreate_db.sql</FullPath>
+          <FullPath>02_seed_data.sql</FullPath>
+        </FileNode>
+        <FileNode Name="05_recreate_db.sql">
+          <AssociatedConnectionMoniker>8c91a03d-f9b4-46c0-a305-b5dcc79ff907:LAURENCE4DED\SQLEXPRESS:True</AssociatedConnectionMoniker>
+          <AssociatedConnSrvName>LAURENCE4DED\SQLEXPRESS</AssociatedConnSrvName>
+          <AssociatedConnUserName />
+          <FullPath>05_recreate_db.sql</FullPath>
+        </FileNode>
+        <FileNode Name="06_test_demo.sql">
+          <AssociatedConnectionMoniker>8c91a03d-f9b4-46c0-a305-b5dcc79ff907:LAURENCE4DED\SQLEXPRESS:True</AssociatedConnectionMoniker>
+          <AssociatedConnSrvName>LAURENCE4DED\SQLEXPRESS</AssociatedConnSrvName>
+          <AssociatedConnUserName />
+          <FullPath>06_test_demo.sql</FullPath>
         </FileNode>
         <FileNode Name="scratch.sql">
           <AssociatedConnectionMoniker>8c91a03d-f9b4-46c0-a305-b5dcc79ff907:LAURENCE4DED\SQLEXPRESS:True</AssociatedConnectionMoniker>
           <AssociatedConnSrvName>LAURENCE4DED\SQLEXPRESS</AssociatedConnSrvName>
           <AssociatedConnUserName />
           <FullPath>scratch.sql</FullPath>
-        </FileNode>
-        <FileNode Name="seed_data.sql">
-          <AssociatedConnectionMoniker>8c91a03d-f9b4-46c0-a305-b5dcc79ff907:LAURENCE4DED\SQLEXPRESS:True</AssociatedConnectionMoniker>
-          <AssociatedConnSrvName>LAURENCE4DED\SQLEXPRESS</AssociatedConnSrvName>
-          <AssociatedConnUserName />
-          <FullPath>seed_data.sql</FullPath>
         </FileNode>
       </Items>
     </LogicalFolder>
