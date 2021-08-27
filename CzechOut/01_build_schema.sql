@@ -1,6 +1,6 @@
 -- Author:		Laurence Pettitt
 -- Project:		Database Applications (NDBI026)
--- Description: Database Application for managing a Sports Centre called CzechOut
+-- Description:	Database Application for managing a Sports Centre called CzechOut
 --				The application allows registration of Employees and Customers,
 --				creation of bookable items such as classes (called Products)
 --				management of the Resources required to make the Products possible
