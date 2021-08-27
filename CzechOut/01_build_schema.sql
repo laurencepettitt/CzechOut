@@ -75,7 +75,7 @@ CREATE TABLE Resources (
     [ResourceID] INT IDENTITY
         CONSTRAINT Resources_PK PRIMARY KEY,
     [Name] VARCHAR(256) NOT NULL
-        CONSTRAINT Resources_U_Name UNIQUE -- TODO: is UNIQUE efficient?
+        CONSTRAINT Resources_U_Name UNIQUE
 )
 
 -- The Product table provides bookable items (e.g. classes and events) which have a capacity (Quantity) and duration
@@ -84,7 +84,7 @@ CREATE TABLE Products (
     [ProductID] INT IDENTITY
         CONSTRAINT Products_PK PRIMARY KEY,
     [Name] VARCHAR(256)
-        CONSTRAINT Products_U_Name UNIQUE, -- TODO: is UNIQUE efficient?
+        CONSTRAINT Products_U_Name UNIQUE,
     [Quantity] INT NOT NULL,
     [BeginDateTime] DATETIME NOT NULL,
     [EndDateTime] DATETIME NOT NULL
@@ -182,7 +182,7 @@ CREATE PROCEDURE Remove_Reservation
 		DELETE FROM Reservations 
 			WHERE ([UserID] = [dbo].Get_UserID(@email))
 			AND (
-				(@productName = NULL) OR
+				(@productName IS NULL) OR
 				([ProductID] = [dbo].Get_ProductID(@productName))
 			)
 	END
@@ -195,21 +195,23 @@ CREATE PROCEDURE Add_Customer
         @dob DATE, @address VARCHAR(256), @accountOpen DATE = DEFAULT,
 		@accountClose DATE = NULL, @memberTypeName VARCHAR(256)
     AS BEGIN
-        INSERT INTO Users (
-            [Email], [PhoneNumber], [FirstName], [LastName],
-            [DateOfBirth], [Address], [AccountOpen], [AccountClose]
-        ) VALUES (
-            @email, @phoneNumber, @firstName, @lastName,
-            @dob, @address, @accountOpen, @accountClose
-        )
+		BEGIN TRANSACTION
+			INSERT INTO Users (
+				[Email], [PhoneNumber], [FirstName], [LastName],
+				[DateOfBirth], [Address], [AccountOpen], [AccountClose]
+			) VALUES (
+				@email, @phoneNumber, @firstName, @lastName,
+				@dob, @address, @accountOpen, @accountClose
+			)
 
-        INSERT INTO Customers (
-            [UserID],
-            [MemberTypeID]
-        ) VALUES (
-            @@IDENTITY,
-            [dbo].Get_MemberTypeID(@memberTypeName)
-        )
+			INSERT INTO Customers (
+				[UserID],
+				[MemberTypeID]
+			) VALUES (
+				@@IDENTITY,
+				[dbo].Get_MemberTypeID(@memberTypeName)
+			)
+		COMMIT TRANSACTION
     END
 GO
 
@@ -219,7 +221,6 @@ CREATE PROCEDURE Close_User_Account
 		@email VARCHAR(256)
 	AS BEGIN
 		BEGIN TRANSACTION
-			
 			EXEC Remove_Reservation @email
 			UPDATE Users
 				SET [AccountClose] = GETDATE()
@@ -243,21 +244,23 @@ CREATE PROCEDURE Add_Employee
         @dob DATE, @address VARCHAR(256), @accountOpen DATE = DEFAULT,
 		@accountClose DATE = NULL, @jobTitle VARCHAR(256) = NULL
     AS BEGIN
-        INSERT INTO Users (
-            [Email], [PhoneNumber], [FirstName], [LastName],
-            [DateOfBirth], [Address], [AccountOpen], [AccountClose]
-        ) VALUES (
-            @email, @phoneNumber, @firstName, @lastName,
-            @dob, @address, @accountOpen, @accountClose
-        )
+		BEGIN TRANSACTION
+			INSERT INTO Users (
+				[Email], [PhoneNumber], [FirstName], [LastName],
+				[DateOfBirth], [Address], [AccountOpen], [AccountClose]
+			) VALUES (
+				@email, @phoneNumber, @firstName, @lastName,
+				@dob, @address, @accountOpen, @accountClose
+			)
 
-        INSERT INTO Employees(
-            [UserID],
-            [JobTitle]
-        ) VALUES (
-            @@IDENTITY,
-            @jobTitle
-        )
+			INSERT INTO Employees(
+				[UserID],
+				[JobTitle]
+			) VALUES (
+				@@IDENTITY,
+				@jobTitle
+			)
+		COMMIT TRANSACTION
     END
 GO
 
@@ -383,44 +386,44 @@ GO
 GO
 CREATE VIEW View_Customers
         AS
-                SELECT  Cs.[MemberTypeID],
-                                Us.[FirstName],
-                                Us.[LastName],
-                                Us.[Email],
-                                Us.[Address],
-                                Us.[PhoneNumber],
-                                Us.[DateOfBirth],
-                                Us.[AccountOpen],
-                                Us.[AccountClose]
-                        FROM Customers Cs
-                        INNER JOIN Users Us ON (Cs.UserID=Us.UserID)
+            SELECT  Cs.[MemberTypeID],
+                            Us.[FirstName],
+                            Us.[LastName],
+                            Us.[Email],
+                            Us.[Address],
+                            Us.[PhoneNumber],
+                            Us.[DateOfBirth],
+                            Us.[AccountOpen],
+                            Us.[AccountClose]
+                    FROM Customers Cs
+                    INNER JOIN Users Us ON (Cs.UserID=Us.UserID)
 GO
 
 -- View_Reservations shows product reservations made by users (usually customers)
 GO
 CREATE VIEW View_Reservations
         AS
-                SELECT		Us.[FirstName],
-							Us.[LastName],
-                            Ps.[Name],
-							Rs.[Quantity],
-							Ps.[Quantity] AS ProductQuantity
-                        FROM Reservations Rs
-                        INNER JOIN Users Us ON (Rs.UserID=Us.UserID)
-                        INNER JOIN Products Ps ON (Rs.ProductID=Ps.ProductID)
+            SELECT		Us.[FirstName],
+						Us.[LastName],
+                        Ps.[Name],
+						Rs.[Quantity],
+						Ps.[Quantity] AS ProductQuantity
+                    FROM Reservations Rs
+                    INNER JOIN Users Us ON (Rs.UserID=Us.UserID)
+                    INNER JOIN Products Ps ON (Rs.ProductID=Ps.ProductID)
 GO
 
 -- View_Products_Reserved_1Week shows products, and their reserved quantity, this week
 GO
 CREATE VIEW View_Products_Reserved_1Week
         AS
-                SELECT		Ps.[Name],
-							Ps.[BeginDateTime],
-                            Ps.[EndDateTime],
-                            Ps.[Quantity],
-                            [dbo].Get_ReservedQuantity(Ps.ProductID) AS ReservedQuantity
-                        FROM Products AS Ps
-                        WHERE Ps.BeginDateTime > GETDATE() AND Ps.[BeginDateTime] < DATEADD(WEEK, 1, GETDATE())
+            SELECT		Ps.[Name],
+						Ps.[BeginDateTime],
+                        Ps.[EndDateTime],
+                        Ps.[Quantity],
+                        [dbo].Get_ReservedQuantity(Ps.ProductID) AS ReservedQuantity
+                    FROM Products AS Ps
+                    WHERE Ps.BeginDateTime > GETDATE() AND Ps.[BeginDateTime] < DATEADD(WEEK, 1, GETDATE())
 GO
 
 /******************************************************************************
