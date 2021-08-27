@@ -10,7 +10,6 @@
 --				Products at any one time.
 
 USE [CzechOut]
--- schema [dbo]
 
 /******************************************************************************
 **   Tables
