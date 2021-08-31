@@ -16,7 +16,7 @@ USE [CzechOut]
 **/
 
 -- Users have personal details.
--- Email and phone number are both unique identifiers (e.g. for login)
+-- Email is a unique identifier (e.g. for login)
 -- The account is only valid/active while the date is greater than or equal to
 -- AccountOpen and, either less than or equal to AccountClose or AccountClose is NULL.
 DROP TABLE IF EXISTS Users
@@ -26,14 +26,11 @@ CREATE TABLE Users (
     [Email] VARCHAR(256) NOT NULL
         CONSTRAINT Users_CHK_Email_Format CHECK([Email] LIKE '_%@_%._%')
         CONSTRAINT Users_U_Email UNIQUE,
-    [PhoneNumber] VARCHAR(16) NOT NULL
-        CONSTRAINT Users_U_PhoneNumber UNIQUE,
+    [PhoneNumber] VARCHAR(16) NOT NULL,
     [FirstName] NVARCHAR(256) NOT NULL,
     [LastName] NVARCHAR(256) NOT NULL,
     [DateOfBirth] DATE NOT NULL,
-    [Address] VARCHAR(256) NOT NULL,
-    [AccountOpen] DATE NOT NULL DEFAULT GETDATE(),
-    [AccountClose] DATE
+    [Address] VARCHAR(256) NOT NULL
 )
 
 -- Describes the types of memberships that Customers can have
@@ -55,7 +52,9 @@ CREATE TABLE Customers (
             ON DELETE CASCADE,
     [MemberTypeID] INT
         CONSTRAINT Customers_FK_MemberTypes REFERENCES MemberTypes([MemberTypeID])
-            ON DELETE SET NULL
+            ON DELETE SET NULL,
+	[MembershipBegin] DATE NOT NULL DEFAULT GETDATE(),
+	[MembershipEnd] DATE
 )
 
 -- Employees are Users which can create Products and Resources
@@ -65,7 +64,9 @@ CREATE TABLE Employees (
         CONSTRAINT Employees_PK PRIMARY KEY
         CONSTRAINT Employees_FK_Users REFERENCES Users([UserID])
             ON DELETE CASCADE,
-    [JobTitle] CHAR(256)
+    [JobTitle] CHAR(256),
+	[EmploymentBegin] DATE NOT NULL DEFAULT GETDATE(),
+	[EmploymentEnd] DATE
 )
 
 -- A Resource can be associated with at most one Product at a time
@@ -191,48 +192,43 @@ GO
 CREATE PROCEDURE Add_Customer
         @email VARCHAR(256), @phoneNumber VARCHAR(16),
 		@firstName VARCHAR(256), @lastName VARCHAR(256),
-        @dob DATE, @address VARCHAR(256), @accountOpen DATE = DEFAULT,
-		@accountClose DATE = NULL, @memberTypeName VARCHAR(256)
+        @dob DATE, @address VARCHAR(256), @membershipBegin DATE = DEFAULT,
+		@membershipEnd DATE = NULL, @memberTypeName VARCHAR(256)
     AS BEGIN
 		BEGIN TRANSACTION
-			INSERT INTO Users (
-				[Email], [PhoneNumber], [FirstName], [LastName],
-				[DateOfBirth], [Address], [AccountOpen], [AccountClose]
-			) VALUES (
-				@email, @phoneNumber, @firstName, @lastName,
-				@dob, @address, @accountOpen, @accountClose
-			)
-
+			IF NOT EXISTS (SELECT * FROM Users WHERE @email=[Email])
+				INSERT INTO Users (
+					[Email], [PhoneNumber], [FirstName], [LastName],
+					[DateOfBirth], [Address]
+				) VALUES (
+					@email, @phoneNumber, @firstName, @lastName,
+					@dob, @address
+				)
 			INSERT INTO Customers (
 				[UserID],
-				[MemberTypeID]
+				[MemberTypeID],
+				[MembershipBegin],
+				[MemberShipEnd]
 			) VALUES (
-				@@IDENTITY,
-				[dbo].Get_MemberTypeID(@memberTypeName)
+				[dbo].Get_UserID(@email),
+				[dbo].Get_MemberTypeID(@memberTypeName),
+				@membershipBegin,
+				@membershipEnd
 			)
 		COMMIT TRANSACTION
     END
-GO
-
-
-GO
-CREATE PROCEDURE Close_User_Account
-		@email VARCHAR(256)
-	AS BEGIN
-		BEGIN TRANSACTION
-			EXEC Remove_Reservation @email
-			UPDATE Users
-				SET [AccountClose] = GETDATE()
-				WHERE [Email] = @email
-		COMMIT TRANSACTION
-	END
 GO
 
 GO
 CREATE PROCEDURE Close_Customer_Account
 		@email VARCHAR(256)
 	AS BEGIN
-		EXEC Close_User_Account @email
+		BEGIN TRANSACTION
+			EXEC Remove_Reservation @email
+			UPDATE Customers
+				SET [MembershipEnd] = GETDATE()
+				WHERE [UserID] = [dbo].Get_UserID(@email)
+		COMMIT TRANSACTION
 	END
 GO
 
@@ -240,24 +236,29 @@ GO
 CREATE PROCEDURE Add_Employee
         @email VARCHAR(256), @phoneNumber VARCHAR(16),
 		@firstName VARCHAR(256), @lastName VARCHAR(256),
-        @dob DATE, @address VARCHAR(256), @accountOpen DATE = DEFAULT,
-		@accountClose DATE = NULL, @jobTitle VARCHAR(256) = NULL
+        @dob DATE, @address VARCHAR(256), @employmentBegin DATE = DEFAULT,
+		@employmentEnd DATE = NULL, @jobTitle VARCHAR(256) = NULL
     AS BEGIN
 		BEGIN TRANSACTION
-			INSERT INTO Users (
-				[Email], [PhoneNumber], [FirstName], [LastName],
-				[DateOfBirth], [Address], [AccountOpen], [AccountClose]
-			) VALUES (
-				@email, @phoneNumber, @firstName, @lastName,
-				@dob, @address, @accountOpen, @accountClose
-			)
+			IF NOT EXISTS (SELECT * FROM Users WHERE @email=[Email])
+				INSERT INTO Users (
+					[Email], [PhoneNumber], [FirstName], [LastName],
+					[DateOfBirth], [Address]
+				) VALUES (
+					@email, @phoneNumber, @firstName, @lastName,
+					@dob, @address
+				)
 
 			INSERT INTO Employees(
 				[UserID],
-				[JobTitle]
+				[JobTitle],
+				[EmploymentBegin],
+				[EmploymentEnd]
 			) VALUES (
-				@@IDENTITY,
-				@jobTitle
+				[dbo].Get_UserID(@email),
+				@jobTitle,
+				@employmentBegin,
+				@employmentEnd
 			)
 		COMMIT TRANSACTION
     END
@@ -267,7 +268,11 @@ GO
 CREATE PROCEDURE Close_Employee_Account
 		@email VARCHAR(256)
 	AS BEGIN
-		EXEC Close_User_Account @email
+		BEGIN TRANSACTION
+			UPDATE Employees
+				SET [EmploymentEnd] = GETDATE()
+				WHERE [UserID] = [dbo].Get_UserID(@email)
+		COMMIT TRANSACTION
 	END
 GO
 
@@ -392,8 +397,8 @@ CREATE VIEW View_Customers
                             Us.[Address],
                             Us.[PhoneNumber],
                             Us.[DateOfBirth],
-                            Us.[AccountOpen],
-                            Us.[AccountClose]
+                            Cs.[MembershipBegin],
+                            Cs.[MembershipEnd]
                     FROM Customers Cs
                     INNER JOIN Users Us ON (Cs.UserID=Us.UserID)
 GO

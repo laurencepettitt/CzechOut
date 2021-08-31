@@ -6,16 +6,7 @@ USE [CzechOut]
 /******************************************************************************
 **   Users, Employees & Customers
 **/
-INSERT INTO Users (
-        [Email],
-        [PhoneNumber],
-        [FirstName],
-        [LastName],
-        [DateOfBirth],
-        [Address],
-        [AccountOpen],
-        [AccountClose]
-    ) VALUES (
+EXEC Add_Employee 
         'smellthebacon@royalmail.uk',
         0700000000,
         'Francis',
@@ -23,21 +14,10 @@ INSERT INTO Users (
         '1600-01-01',
         'The Strand, London, England',
         '2021-01-01',
-        NULL
-    )
+        NULL,
+        'Founder'
 
-INSERT INTO Employees ([UserID], [JobTitle]) VALUES (@@IDENTITY, 'Founder')
-
-INSERT INTO Users (
-        [Email],
-        [PhoneNumber],
-        [FirstName],
-        [LastName],
-        [DateOfBirth],
-        [Address],
-        [AccountOpen],
-        [AccountClose]
-    ) VALUES (
+EXEC Add_Employee
         'locke@mail.tld',
         0700000001,
         'Johne',
@@ -45,21 +25,10 @@ INSERT INTO Users (
         '1600-01-01',
         'England',
         '2021-01-01',
-        NULL
-    )
+        NULL,
+        'HeadCoach'
 
-INSERT INTO Employees ([UserID], [JobTitle]) VALUES (@@IDENTITY, 'HeadCoach')
-
-INSERT INTO Users (
-        [Email],
-        [PhoneNumber],
-        [FirstName],
-        [LastName],
-        [DateOfBirth],
-        [Address],
-        [AccountOpen],
-        [AccountClose]
-    ) VALUES (
+EXEC Add_Employee
         'czechitout@science.cz',
         0700000002,
         'Jan',
@@ -67,27 +36,13 @@ INSERT INTO Users (
         '1800-01-01',
         'Czechia',
         '2021-01-01',
-        NULL
-    )
-
-INSERT INTO Employees ([UserID], [JobTitle]) VALUES (@@IDENTITY, 'CasualGenius')
+        NULL,
+        'CasualGenius'
 
 INSERT INTO MemberTypes ([Name], [Description])
     VALUES ('GetSwole-1Month', 'Get Swole - 1 Month Membership')
 
-DECLARE @MemberID INT
-SET @MemberID = @@IDENTITY
-
-INSERT INTO Users (
-        [Email],
-        [PhoneNumber],
-        [FirstName],
-        [LastName],
-        [DateOfBirth],
-        [Address],
-        [AccountOpen],
-        [AccountClose]
-    ) VALUES (
+EXEC ADD_Customer
         'classicsmith@econ.uk',
         0700000003,
         'Adam',
@@ -95,11 +50,8 @@ INSERT INTO Users (
         '1700-01-01',
         'England',
         '2021-02-01',
-        '2021-03-01'
-    )
-
-INSERT INTO Customers ([UserID], [MemberTypeID])
-    VALUES (@@IDENTITY, @MemberID)
+        '2022-02-01',
+        'GetSwole-1Month'
 
 /******************************************************************************
 **   Resources
